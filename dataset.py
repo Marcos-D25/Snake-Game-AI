@@ -5,13 +5,12 @@ import math as mt
 '''
 Como va a ser el dataset
 
-serpiente | distancia_comida |  movimiento | acertado
+cabeza_serpiente_x | cabeza_serpiente_y | dist_comida_x | dist_comida_y | pared_arriba | pared_abajo | pared_derecha | pared_izquierda | cuerpo_abajo | cuerpo_arriba | cuerpo_derecha | cuerpo_izquierda
 
 
 serpiente: es el conjunto de coordeenadas que componen la serpiente
 distancia_comida : va a ser la distancia euclidea entre la cabeza de la serpiente y la comida
-movimiento: es el movimiento que el jugador ha elegido (L,R,U,D)
-acertado: 0 si no es acertado, 1 si es acertado
+movimiento: es el movimiento acertado que el jugador ha elegido (L,R,U,D)
 '''
 
 '''
@@ -22,28 +21,20 @@ const randNum = Math.round((Math.random()* max ) / unitSize) * unitSize;
 
 '''
 MOVIMIENTO:
-Me lo invento :P
+Veo el mejor movimiento para llegar mas rapido de manera segura a la comida
 '''
 
-'''
-ACERTADO:
-El movimiento sera acertado si reduce la distancia
-'''
-SIZE = 2000000
+SIZE = 10
 UNITSIZE = 20
 WIDTH = 400
 HEIGHT = 400
 MOVIMIENTOS = ['L','R','U','D']
 
-data = np.empty(shape=[SIZE,4], dtype=list)
+data = np.empty(shape=[SIZE,12], dtype=list)
 
-def seleccionar_direccion(dir = 'Random'):
-    if dir == 'Random':
-        dir = r.choice(MOVIMIENTOS)
-    return dir
 
+#Devuelve True si la serpiente con el resto de su cuerpo
 def genera_choque(serpiente:list[list],coord:list) -> bool:
-    #Para ver si genera choque la serpiente con el resto del cuerpo he de ver si coincide en alguna coordenada con otra parte de su cuerpo
     choca = False
     for c_s in serpiente:
         choca = c_s[0] == coord[0] and c_s[1] == coord[1]
@@ -51,47 +42,56 @@ def genera_choque(serpiente:list[list],coord:list) -> bool:
             break
     return choca
 
-def movimiento_ilegal(coord:list):
+#Devuelve True si se colisiona cualquier coordenada con los bordes
+def choca_bordes(coord:list):
     x = coord[0]
     y = coord[1]
     return x < 0 or x>=WIDTH or y < 0 or y >= HEIGHT
 
-def genera_cuerpo(cuerpo_serpiente:list, direccion = None) -> list:
-    cuerpo_x = cuerpo_serpiente[0]
-    cuerpo_y = cuerpo_serpiente[1]
+#Simula la accion de moverse a un lado determinado
+def simular_movimiento(cuerpo_x:int, cuerpo_y:int, dir:str, serpiente:list[list]) -> (list,bool):
+    match dir:
+        case 'L': mov = [cuerpo_x-UNITSIZE,cuerpo_y]
+        case 'R': mov = [cuerpo_x+UNITSIZE,cuerpo_y]
+        case 'U': mov = [cuerpo_x,cuerpo_y-UNITSIZE]
+        case 'D': mov = [cuerpo_x,cuerpo_y+UNITSIZE]
+    if not genera_choque(serpiente,mov) and not choca_bordes(mov):
+        choca = False
+    else:
+        choca = True
+    
+    return (mov, choca)
+
+
+#Genera un trozo de cuerpo de la serpiente de manea aleatoria pero que es posible
+def genera_cuerpo(serpiente:list) -> list:
+    cuerpo_x = serpiente[len(serpiente)-1][0]
+    cuerpo_y = serpiente[len(serpiente)-1][1]
     choca = True
     while(choca):
-        if direccion != None:
-            mov = seleccionar_direccion(direccion)
-        else:
-            mov = seleccionar_direccion()
-
-        match mov:
-            case 'L': return [cuerpo_x-UNITSIZE,cuerpo_y]
-            case 'R': return [cuerpo_x+UNITSIZE,cuerpo_y]
-            case 'U': return [cuerpo_x,cuerpo_y-UNITSIZE]
-            case 'D': return [cuerpo_x,cuerpo_y+UNITSIZE]
-        if not genera_choque(serpiente,mov) and not movimiento_ilegal(mov):
-            choca = False
-    
+        dir = r.choice(MOVIMIENTOS)
+        mov, choca = simular_movimiento(cuerpo_x,cuerpo_y, dir, serpiente)
+        
     return mov
-    
+
+#Genera unas coordenadas aleatorias posibles en el tablero
 def generar_coords(serpiente:list[list]):
     ilegal = True
     while ilegal:
         coords = [r.randrange(0, WIDTH, UNITSIZE), r.randrange(0, HEIGHT, UNITSIZE)]
-        if not genera_choque(serpiente,coords) and not movimiento_ilegal(coords):
+        if not genera_choque(serpiente,coords) and not choca_bordes(coords):
             ilegal = False
     return coords
 
+#Genera la serpiente entera
 def generar_serpiente() -> list[list]:
-    long_serp = r.randint(1,20)
+    long_serp = r.randint(1,5)
     cab_s_x = r.randrange(0, WIDTH, UNITSIZE)
     cab_s_y = r.randrange(0, HEIGHT, UNITSIZE)
     serpiente = [[cab_s_x,cab_s_y]]
     
     for _ in range(1,long_serp):
-        cuerpo = genera_cuerpo(serpiente[len(serpiente)-1])
+        cuerpo = genera_cuerpo(serpiente)
         serpiente.append(cuerpo)
     return serpiente
 
@@ -107,14 +107,23 @@ for i in range (SIZE):
     #Calculo la distancia entre la cabeza de la serpiente y la comida
     dist_comida = mt.sqrt((comida[0]-serpiente[0][0])**2 + (comida[1]-serpiente[0][1])**2)
 
-    #Me invento el movimiento que va a coger
-    movimiento = genera_cuerpo(serpiente[0])
-    new_dist_comida = mt.sqrt((comida[0]-movimiento[0])**2 + (comida[1]-movimiento[1])**2)
-    #Compruebo si el movimiento es acertado o no
-    acertado = 1 if new_dist_comida < dist_comida else 0
+    #Calculo el movimiento mejor para llegar a la comida de manera legal
+    mov_disponibles = dict()#{dir: [mov, dist]}
+    for dir in MOVIMIENTOS:
+        mov, choca = simular_movimiento(serpiente[0][0], serpiente[0][1], dir, serpiente)
+        if not choca:
+            mov_disponibles[dir] = [mt.sqrt((comida[0]-mov[0])**2 + (comida[1]-mov[1])**2)]
+    #Veo cual de los movimientos elegidos es el mejor 
+    
+    min_dist = min(mov_disponibles.values())
+    movimiento = [d for d in mov_disponibles.keys() if mov_disponibles[d] == min_dist][0]
 
-    data[i] = [serpiente, dist_comida, movimiento, acertado]
 
-df = pd.DataFrame(data, columns=["pos_serpiente", "pos_comida", "movimiento", "acertado"])
-df.to_csv('snake_2M.csv', index=False)
+    data[i] = [serpiente, dist_comida, movimiento]
 
+df = pd.DataFrame(data, columns=["cabeza_serpiente_x","cabeza_serpiente_y",
+                                  "dist_comida_x", "dist_comida_y", 
+                                  "pared_arriba" , "pared_abajo" , "pared_derecha" , "pared_izquierda" ,
+                                   "cuerpo_arriba" , "cuerpo_abajo" , "cuerpo_derecha" , "cuerpo_izquierda"])
+#df.to_csv('snake_2M.csv', index=False)
+print(df)
