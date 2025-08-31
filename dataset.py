@@ -124,7 +124,7 @@ for i in range (SIZE):
     #Veo cual de los movimientos es el mejor 
     valores = list(direcciones.values())
     try:
-        dist_comidas = min([pos[2] for pos in valores if pos[2] != 0])#Obtengo la minima distancia hacia la comida
+        dist_comidas = min([pos[2] for pos in valores])#Obtengo la minima distancia hacia la comida
         # Encuentra la dirección (key) cuyo valor[2] es igual a dist_comidas
         for dir, val in direcciones.items():
             if val[2] == dist_comidas:
