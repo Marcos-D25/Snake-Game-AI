@@ -208,8 +208,8 @@ function get_Estado(){
     let c_s_x = snake[0].x;
     let c_s_y = snake[0].y;
     //Distancias de la comida a la cabeza de la serpiente
-    let dist_com_x = foodX-c_s_x;
-    let dist_com_y = foodY-c_s_y;
+    let dist_com_x = Math.abs(foodX-c_s_x);
+    let dist_com_y = Math.abs(foodY-c_s_y);
     //Colisiones con las paredes
     let movs = [snake[0].x - unitSize, snake[0].x + unitSize, snake[0].y - unitSize, snake[0].y + unitSize];
     let p_iz = movs[0] < 0;

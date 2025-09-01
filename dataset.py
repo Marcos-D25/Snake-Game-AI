@@ -15,13 +15,17 @@ cuerpo_(arriba/abajo/derecha/izquierda): 0 si no hay cuerpo de la serpiente en l
 movimiento: Es el mejor movimiento a escoger en la situacion
 '''
 
-SIZE = 2000000
+DATOS = [#("100K",100000),
+         ("200K",200000),
+         ("500K",500000),
+         ("1M",1000000),
+         ("2M",2000000)
+         ]
 UNITSIZE = 20
 WIDTH = 400
 HEIGHT = 400
 MOVIMIENTOS = ['L','R','U','D']
 
-data = np.empty(shape=[SIZE,13], dtype=list)
 
 
 #Devuelve True si la serpiente con el resto de su cuerpo
@@ -94,65 +98,76 @@ def generar_serpiente() -> list[list]:
     return serpiente
 
 
-
-for i in range (SIZE):
-    #Genero la serpiente
-    serpiente = generar_serpiente()
-
-    #Genero las coordenadas de la comida
-    comida = generar_coords(serpiente)
-
-    #Calculo la distancia entre la cabeza de la serpiente y la comida
-    dist_comida_x = comida[0]-serpiente[0][0]
-    dist_comida_y = comida[1]-serpiente[0][1]
-
-    #Compruebo las paredes cercanas, las colisiones con el cuerpo y si es un movimiento valido
-    direcciones = dict()#{dir : [bool (pared), bool (cuerpo), dist_comida]}
-    for dir in MOVIMIENTOS:
-        resultados = [False,False,0] #[bool (pared), bool (cuerpo), dist_comida]
-        mov = mover(serpiente[0][0], serpiente[0][1], dir)
-        if choca_bordes(mov):
-            resultados[0] = True
-        if choque_cuerpo(serpiente,mov):
-            resultados[1] = True
-        
-        if not resultados[0] and not resultados[1]:
-            resultados[2] = mt.sqrt((mov[0]-comida[0])**2 + (mov[1]-comida[1])**2)
-        
-        direcciones[dir] = resultados
-
-    #Veo cual de los movimientos es el mejor 
-    valores = list(direcciones.values())
-    try:
-        dist_comidas = min([pos[2] for pos in valores])#Obtengo la minima distancia hacia la comida
-        # Encuentra la dirección (key) cuyo valor[2] es igual a dist_comidas
-        for dir, val in direcciones.items():
-            if val[2] == dist_comidas:
-                mejor_movimiento = dir
-                break
-    except ValueError:
-        mejor_movimiento = None
-
-    # Barra de progreso simple
-    if i % (SIZE // 100) == 0 or i == SIZE - 1:
-        progress = int((i + 1) / SIZE * 100)
-        print(f"\rProgreso: {progress}% [{'#' * (progress // 2)}{' ' * (50 - progress // 2)}]", end='', flush=True)
+def generar_dataset(datos):
     
-    data[i] = [
-        serpiente[0][0], serpiente[0][1],
-        dist_comida_x, dist_comida_y,
-        direcciones['L'][0], direcciones['R'][0], direcciones['U'][0], direcciones['D'][0],
-        direcciones['L'][1], direcciones['R'][1], direcciones['U'][1], direcciones['D'][1],
-        mejor_movimiento
-    ]
+    for tupla in datos:
+        data = np.empty(shape=[tupla[1],13], dtype=list)
+        print(f"GENERANDO DATASET {tupla[0]}")
+        for i in range (tupla[1]):
+            #Genero la serpiente
+            serpiente = generar_serpiente()
+
+            #Genero las coordenadas de la comida
+            comida = generar_coords(serpiente)
+
+            #Calculo la distancia entre la cabeza de la serpiente y la comida
+            dist_comida_x = abs(comida[0]-serpiente[0][0])
+            dist_comida_y = abs(comida[1]-serpiente[0][1])
+
+            #Compruebo las paredes cercanas, las colisiones con el cuerpo y si es un movimiento valido
+            direcciones = dict()#{dir : [bool (pared), bool (cuerpo), dist_comida]}
+            for dir in MOVIMIENTOS:
+                resultados = [False,False,0] #[bool (pared), bool (cuerpo), dist_comida]
+                mov = mover(serpiente[0][0], serpiente[0][1], dir)
+                if choca_bordes(mov):
+                    resultados[0] = True
+                if choque_cuerpo(serpiente,mov):
+                    resultados[1] = True
+                
+                if not resultados[0] and not resultados[1]:
+                    nueva_dist_com_x = abs(comida[0]-mov[0])
+                    nueva_dist_com_y = abs(comida[1]-mov[1])
+                    resultados[2] = nueva_dist_com_x+nueva_dist_com_y
+                
+                direcciones[dir] = resultados
+            #print(f"El conjunto de direcciones es {direcciones}")
+            #Veo cual de los movimientos es el mejor 
+            valores = list(direcciones.values())
+            try:
+                dist_comidas = min([pos[2] for pos in valores if not pos[0] and not pos[1]])#Obtengo la minima distancia hacia la comida
+                # Encuentra la dirección (key) cuyo valor[2] es igual a dist_comidas
+                for dir, val in direcciones.items():
+                    if val[2] == dist_comidas:
+                        mejor_movimiento = dir
+                        break
+            except ValueError:
+                mejor_movimiento = None
+            #print(f"El mejor movimiento es {mejor_movimiento}")
+            
+            #if i % (tupla[1] // 100) == 0 or i == tupla[1] - 1:
+            #    progress = int((i + 1) / tupla[1] * 100)
+            #    print(f"\rProgreso del dataset {tupla[0]}: {progress}% [{'#' * (progress // 2)}{' ' * (50 - progress // 2)}]", end='', flush=True)
+            
+            data[i] = [
+                serpiente[0][0], serpiente[0][1],
+                dist_comida_x, dist_comida_y,
+                direcciones['L'][0], direcciones['R'][0], direcciones['U'][0], direcciones['D'][0],
+                direcciones['L'][1], direcciones['R'][1], direcciones['U'][1], direcciones['D'][1],
+                mejor_movimiento
+            ]
+
+        df = pd.DataFrame(data, columns=["cabeza_serpiente_x","cabeza_serpiente_y",
+                                        "dist_comida_x", "dist_comida_y", 
+                                        "pared_izq" , "pared_der" , "pared_ar" , "pared_ab" ,
+                                        "cuerpo_izq" , "cuerpo_der" , "cuerpo_ar" , "cuerpo_ab",
+                                        "movimiento"])
+        df.to_csv('Datasets/snake_'+tupla[0]+'.csv', index=False)
+        print(f"DATASET {tupla[0]} COMPLETADO")
+        print("-------------------------------------------")
 
 
-    
 
-df = pd.DataFrame(data, columns=["cabeza_serpiente_x","cabeza_serpiente_y",
-                                  "dist_comida_x", "dist_comida_y", 
-                                  "pared_izq" , "pared_der" , "pared_ar" , "pared_ab" ,
-                                   "cuerpo_izq" , "cuerpo_der" , "cuerpo_ar" , "cuerpo_ab",
-                                   "movimiento"])
-df.to_csv('Datasets/snake_2M.csv', index=False)
-#print(df)
+def main():
+    generar_dataset(DATOS)
+if __name__ == "__main__":
+    main()

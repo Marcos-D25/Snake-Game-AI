@@ -6,7 +6,7 @@ import heapq as h
 import random as r
 MOVIMIENTOS = ['L','R','U','D']
 MODELOS = ["Modelo_100K","Modelo_200K","Modelo_500K","Modelo_1M","Modelo_2M"]
-modelo = tf.keras.models.load_model(os.path.join("Modelos",MODELOS[4]))
+modelo = tf.keras.models.load_model(os.path.join("Modelos",MODELOS[2]))
 
 
 
@@ -50,10 +50,12 @@ def aleatoriedad (prediccion) -> int:
                          key= lambda x : x[1] #La funcion nlargest devuelve los numeros mayores del iterable, pero quiero coger el numero mayor del par (indice,numero)
                          )
     #print(f"LOS MOVIMIENTOS ESCOGIDOS SON {n1} Y {n2}")
-    rango = 0.1
+    
+    rango = 0.05
     if (n1[1]-rango<=n2[1]):
         print("ELIGIENDO AL AZAR")
-        return r.choice[n1[0],n2[0]]
+        return r.choice([n1[0],n2[0]])
     else:
         print("ELIGIENDO EL MAYOR")
         return n1[0]
+   
